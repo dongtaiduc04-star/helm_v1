@@ -1,0 +1,20 @@
+{{- if .Values.avatarPersistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-avatars
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Delete=false
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.avatarPersistence.accessMode }}
+  {{- with .Values.avatarPersistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.avatarPersistence.size }}
+{{- end }}

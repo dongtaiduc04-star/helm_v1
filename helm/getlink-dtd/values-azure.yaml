@@ -1,0 +1,44 @@
+fullnameOverride: getlink-dtd
+# Optional credential reference for your own private registry images.
+# Create this Secret outside Git; no token is stored in this file.
+imagePullSecrets:
+  - name: ghcr-pull-secret
+# Example packages only: build/publish your own images and select immutable tags.
+# The public app_v1 workflow does not publish images.
+images:
+  frontend:
+    repository: ghcr.io/example-owner/getlink-dtd-frontend
+    tag: replace-with-your-image-tag
+    pullPolicy: IfNotPresent
+  apiGateway:
+    repository: ghcr.io/example-owner/getlink-dtd-api-gateway
+    tag: replace-with-your-image-tag
+    pullPolicy: IfNotPresent
+  authService:
+    repository: ghcr.io/example-owner/getlink-dtd-auth-service
+    tag: replace-with-your-image-tag
+    pullPolicy: IfNotPresent
+  linkService:
+    repository: ghcr.io/example-owner/getlink-dtd-link-service
+    tag: replace-with-your-image-tag
+    pullPolicy: IfNotPresent
+app:
+  publicBaseUrl: https://getlink-azure.example.com
+# k3s ships the local-path provisioner. Data remains on the VM's managed disk,
+# so keep one application node and back up MySQL/avatar data before recreation.
+mysql:
+  persistence:
+    storageClass: local-path
+avatarPersistence:
+  storageClass: local-path
+# Cloudflare Tunnel forwards the original Host header to Traefik over the
+# cluster network. TLS terminates at Cloudflare; no public Azure IP is needed.
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  host: getlink-azure.example.com
+  tls:
+    enabled: false
+    secretName: ""

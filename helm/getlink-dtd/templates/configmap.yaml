@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-config
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+data:
+  API_GATEWAY_URL: http://{{ include "getlink-dtd.fullname" . }}-api-gateway:{{ .Values.service.apiGateway.port }}
+  AUTH_SERVICE_URL: http://{{ include "getlink-dtd.fullname" . }}-auth-service:{{ .Values.service.authService.port }}
+  LINK_SERVICE_URL: http://{{ include "getlink-dtd.fullname" . }}-link-service:{{ .Values.service.linkService.port }}
+  JWT_ISSUER: {{ .Values.app.jwtIssuer | quote }}
+  FRONTEND_BASE_URL: {{ .Values.app.publicBaseUrl | quote }}
+  REFRESH_COOKIE_SECURE: {{ .Values.app.refreshCookieSecure | quote }}
+  MAX_LINKS_PER_PROFILE: {{ .Values.app.maxLinksPerProfile | quote }}
+  MAX_AVATAR_BYTES: {{ .Values.app.maxAvatarBytes | quote }}

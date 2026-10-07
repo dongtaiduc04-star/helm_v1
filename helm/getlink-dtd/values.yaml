@@ -1,0 +1,139 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+images:
+  frontend:
+    repository: getlink-dtd-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  apiGateway:
+    repository: getlink-dtd-api-gateway
+    tag: latest
+    pullPolicy: IfNotPresent
+  authService:
+    repository: getlink-dtd-auth-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  linkService:
+    repository: getlink-dtd-link-service
+    tag: latest
+    pullPolicy: IfNotPresent
+
+replicaCount:
+  frontend: 1
+  apiGateway: 1
+  authService: 1
+  # Keep at one replica while avatars use a ReadWriteOnce filesystem volume.
+  linkService: 1
+
+service:
+  frontend:
+    port: 3000
+  apiGateway:
+    port: 8080
+  authService:
+    port: 8081
+  linkService:
+    port: 8082
+
+app:
+  publicBaseUrl: https://app.example.com
+  jwtIssuer: getlink_dtd
+  refreshCookieSecure: true
+  maxLinksPerProfile: 30
+  maxAvatarBytes: "5242880"
+
+database:
+  auth:
+    url: jdbc:mysql://mysql.example.internal:3306/authdb
+    username: getlink_auth
+  link:
+    url: jdbc:mysql://mysql.example.internal:3306/linkdb
+    username: getlink_link
+
+# Create this Secret outside Helm. See README.md for the required keys.
+existingSecret: getlink-dtd-secrets
+
+mysql:
+  enabled: true
+  image:
+    repository: mysql
+    tag: "8.4"
+    pullPolicy: IfNotPresent
+  databases:
+    auth: authdb
+    link: linkdb
+  users:
+    auth: getlink_auth
+    link: getlink_link
+  persistence:
+    storageClass: ""
+    size: 8Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+avatarPersistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 2Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  host: app.example.com
+  tls:
+    enabled: true
+    secretName: getlink-dtd-tls
+
+resources:
+  frontend:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+  apiGateway:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  authService:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  linkService:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL

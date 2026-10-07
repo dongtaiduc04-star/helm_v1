@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-api-gateway
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-gateway
+spec:
+  replicas: {{ .Values.replicaCount.apiGateway }}
+  selector:
+    matchLabels:
+      {{- include "getlink-dtd.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api-gateway
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "getlink-dtd.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api-gateway
+    spec:
+      {{- include "getlink-dtd.imagePullSecrets" . | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api-gateway
+          image: "{{ .Values.images.apiGateway.repository }}:{{ .Values.images.apiGateway.tag }}"
+          imagePullPolicy: {{ .Values.images.apiGateway.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: SERVER_PORT
+              value: "8080"
+            - name: AUTH_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "getlink-dtd.fullname" . }}-config
+                  key: AUTH_SERVICE_URL
+            - name: LINK_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "getlink-dtd.fullname" . }}-config
+                  key: LINK_SERVICE_URL
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources.apiGateway | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

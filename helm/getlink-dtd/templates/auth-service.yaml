@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-auth-service
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+    app.kubernetes.io/component: auth-service
+spec:
+  replicas: {{ .Values.replicaCount.authService }}
+  selector:
+    matchLabels:
+      {{- include "getlink-dtd.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: auth-service
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "getlink-dtd.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: auth-service
+    spec:
+      {{- include "getlink-dtd.imagePullSecrets" . | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: auth-service
+          image: "{{ .Values.images.authService.repository }}:{{ .Values.images.authService.tag }}"
+          imagePullPolicy: {{ .Values.images.authService.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: SERVER_PORT
+              value: "8081"
+            - name: AUTH_DB_URL
+              value: {{ ternary (printf "jdbc:mysql://%s-mysql:3306/%s" (include "getlink-dtd.fullname" .) .Values.mysql.databases.auth) .Values.database.auth.url .Values.mysql.enabled | quote }}
+            - name: AUTH_DB_USER
+              value: {{ ternary .Values.mysql.users.auth .Values.database.auth.username .Values.mysql.enabled | quote }}
+            - name: AUTH_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "getlink-dtd.secretName" . }}
+                  key: auth-db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "getlink-dtd.secretName" . }}
+                  key: jwt-secret
+          envFrom:
+            - configMapRef:
+                name: {{ include "getlink-dtd.fullname" . }}-config
+          ports:
+            - name: http
+              containerPort: 8081
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources.authService | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

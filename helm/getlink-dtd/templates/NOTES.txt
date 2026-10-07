@@ -1,0 +1,9 @@
+GetLink DTD chart rendered successfully.
+
+Before installation, create Secret {{ include "getlink-dtd.secretName" . }} with:
+  - mysql-root-password (required when mysql.enabled=true)
+  - auth-db-password
+  - link-db-password
+  - jwt-secret (at least 32 random bytes)
+
+Set real image repositories/tags and replace app.example.com before deploying.

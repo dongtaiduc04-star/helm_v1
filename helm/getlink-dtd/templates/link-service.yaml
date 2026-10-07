@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-link-service
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+    app.kubernetes.io/component: link-service
+spec:
+  replicas: {{ .Values.replicaCount.linkService }}
+  selector:
+    matchLabels:
+      {{- include "getlink-dtd.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: link-service
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "getlink-dtd.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: link-service
+    spec:
+      {{- include "getlink-dtd.imagePullSecrets" . | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: link-service
+          image: "{{ .Values.images.linkService.repository }}:{{ .Values.images.linkService.tag }}"
+          imagePullPolicy: {{ .Values.images.linkService.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: SERVER_PORT
+              value: "8082"
+            - name: LINK_DB_URL
+              value: {{ ternary (printf "jdbc:mysql://%s-mysql:3306/%s" (include "getlink-dtd.fullname" .) .Values.mysql.databases.link) .Values.database.link.url .Values.mysql.enabled | quote }}
+            - name: LINK_DB_USER
+              value: {{ ternary .Values.mysql.users.link .Values.database.link.username .Values.mysql.enabled | quote }}
+            - name: LINK_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "getlink-dtd.secretName" . }}
+                  key: link-db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "getlink-dtd.secretName" . }}
+                  key: jwt-secret
+            - name: AVATAR_STORAGE_DIRECTORY
+              value: /app/data/avatars
+          envFrom:
+            - configMapRef:
+                name: {{ include "getlink-dtd.fullname" . }}-config
+          ports:
+            - name: http
+              containerPort: 8082
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources.linkService | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: avatars
+              mountPath: /app/data/avatars
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: avatars
+          {{- if .Values.avatarPersistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "getlink-dtd.fullname" . }}-avatars
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

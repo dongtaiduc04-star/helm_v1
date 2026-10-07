@@ -1,0 +1,128 @@
+{{- if .Values.mysql.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-mysql-init
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+data:
+  01-init.sh: |
+    #!/bin/sh
+    set -eu
+    mysql --protocol=socket -uroot -p"${MYSQL_ROOT_PASSWORD}" <<SQL
+    CREATE DATABASE IF NOT EXISTS \`${AUTH_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS \`${LINK_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS '${AUTH_DB_USER}'@'%' IDENTIFIED BY '${AUTH_DB_PASSWORD}';
+    ALTER USER '${AUTH_DB_USER}'@'%' IDENTIFIED BY '${AUTH_DB_PASSWORD}';
+    GRANT ALL PRIVILEGES ON \`${AUTH_DB_NAME}\`.* TO '${AUTH_DB_USER}'@'%';
+    CREATE USER IF NOT EXISTS '${LINK_DB_USER}'@'%' IDENTIFIED BY '${LINK_DB_PASSWORD}';
+    ALTER USER '${LINK_DB_USER}'@'%' IDENTIFIED BY '${LINK_DB_PASSWORD}';
+    GRANT ALL PRIVILEGES ON \`${LINK_DB_NAME}\`.* TO '${LINK_DB_USER}'@'%';
+    FLUSH PRIVILEGES;
+    SQL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-mysql
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mysql
+spec:
+  clusterIP: None
+  selector:
+    {{- include "getlink-dtd.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "getlink-dtd.fullname" . }}-mysql
+  labels:
+    {{- include "getlink-dtd.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mysql
+spec:
+  serviceName: {{ include "getlink-dtd.fullname" . }}-mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "getlink-dtd.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mysql
+  template:
+    metadata:
+      labels:
+        {{- include "getlink-dtd.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mysql
+    spec:
+      {{- include "getlink-dtd.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: mysql
+          image: "{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "getlink-dtd.secretName" . }}
+                  key: mysql-root-password
+            - name: AUTH_DB_NAME
+              value: {{ .Values.mysql.databases.auth | quote }}
+            - name: AUTH_DB_USER
+              value: {{ .Values.mysql.users.auth | quote }}
+            - name: AUTH_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "getlink-dtd.secretName" . }}
+                  key: auth-db-password
+            - name: LINK_DB_NAME
+              value: {{ .Values.mysql.databases.link | quote }}
+            - name: LINK_DB_USER
+              value: {{ .Values.mysql.users.link | quote }}
+            - name: LINK_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "getlink-dtd.secretName" . }}
+                  key: link-db-password
+          ports:
+            - name: mysql
+              containerPort: 3306
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p${MYSQL_ROOT_PASSWORD} --silent"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p${MYSQL_ROOT_PASSWORD} --silent"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.mysql.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: {{ include "getlink-dtd.fullname" . }}-mysql-init
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.mysql.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mysql.persistence.size }}
+{{- end }}
