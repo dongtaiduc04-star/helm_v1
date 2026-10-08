@@ -1,29 +1,29 @@
 fullnameOverride: getlink-dtd
-# Optional credential reference for your own private registry images.
-# Create this Secret outside Git; no token is stored in this file.
+# This Secret is created directly in k3s by the Azure bootstrap and is never
+# committed to Git. It authenticates pulls from the private GHCR packages.
 imagePullSecrets:
   - name: ghcr-pull-secret
-# Example packages only: build/publish your own images and select immutable tags.
-# The public app_v1 workflow does not publish images.
+# These packages are produced by the app repository workflow and remain
+# private. The workflow replaces every tag below with an immutable commit SHA.
 images:
   frontend:
-    repository: ghcr.io/example-owner/getlink-dtd-frontend
-    tag: replace-with-your-image-tag
+    repository: ghcr.io/dongtaiduc04-star/getlink-dtd-frontend
+    tag: 31e138fa1217be3ab1663841fdce3a9c252edf45
     pullPolicy: IfNotPresent
   apiGateway:
-    repository: ghcr.io/example-owner/getlink-dtd-api-gateway
-    tag: replace-with-your-image-tag
+    repository: ghcr.io/dongtaiduc04-star/getlink-dtd-api-gateway
+    tag: 31e138fa1217be3ab1663841fdce3a9c252edf45
     pullPolicy: IfNotPresent
   authService:
-    repository: ghcr.io/example-owner/getlink-dtd-auth-service
-    tag: replace-with-your-image-tag
+    repository: ghcr.io/dongtaiduc04-star/getlink-dtd-auth-service
+    tag: 31e138fa1217be3ab1663841fdce3a9c252edf45
     pullPolicy: IfNotPresent
   linkService:
-    repository: ghcr.io/example-owner/getlink-dtd-link-service
-    tag: replace-with-your-image-tag
+    repository: ghcr.io/dongtaiduc04-star/getlink-dtd-link-service
+    tag: 31e138fa1217be3ab1663841fdce3a9c252edf45
     pullPolicy: IfNotPresent
 app:
-  publicBaseUrl: https://getlink-azure.example.com
+  publicBaseUrl: https://getlink-azure.dongtaiduc.me
 # k3s ships the local-path provisioner. Data remains on the VM's managed disk,
 # so keep one application node and back up MySQL/avatar data before recreation.
 mysql:
@@ -38,7 +38,7 @@ ingress:
   className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
-  host: getlink-azure.example.com
+  host: getlink-azure.dongtaiduc.me
   tls:
     enabled: false
     secretName: ""
