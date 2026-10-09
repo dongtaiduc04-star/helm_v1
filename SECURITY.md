@@ -8,8 +8,9 @@ Security tab to report privately. Otherwise ask the maintainer, without
 including sensitive details, for a private reporting channel. Do not assume
 that an ordinary issue or pull request is confidential.
 
-Public CI only runs verification with read-only repository permissions. It
-does not use deployed databases, cloud credentials or production resources.
+This chart copy has no separate GitHub deployment workflow. The configured
+`app_v1` workflow updates its image values, and the existing Argo Application
+deploys the selected Helm source. No cloud or database credential belongs here.
 Examples that name a Secret contain references only; real values must be
 supplied outside Git. An operator must change any factory/demo credential
 before exposing a real service.

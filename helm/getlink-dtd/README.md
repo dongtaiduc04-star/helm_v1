@@ -1,23 +1,18 @@
 # GetLink DTD Helm chart
 
-This chart contains the frontend, API Gateway, Auth Service, Link Service,
-optional MySQL StatefulSet and avatar storage. See the repository
-[README](../../README.md) for the Azure runtime contract, required external Secret keys
-and local lint/template commands.
+The original GetLink chart for frontend, API Gateway, Auth Service, Link Service,
+optional MySQL and avatar storage, using only the existing Azure deployment.
+Render its base `values.yaml` with `values-azure.yaml`.
 
-The base values are generic. The Azure overlay preserves the existing
-`getlink-dtd` deployment's image repositories, hostname, Secret references,
-Traefik configuration and `local-path` persistence. Its four immutable image
-tags initially match the private operational Helm repository. This chart does
-not publish images or manage credentials. Keep all passwords in the existing
-`getlink-dtd-secrets` Kubernetes Secret, outside Git.
+Keep release/namespace `getlink-dtd`, MySQL StatefulSet `getlink-dtd-mysql`,
+avatar PVC `getlink-dtd-avatars`, `getlink-dtd-secrets`, `ghcr-pull-secret`,
+the existing website and `local-path` volumes. Do not create separate v1
+resources or commit passwords/tokens.
 
-Reusing the existing environment means retaining the release and namespace
-`getlink-dtd`, MySQL StatefulSet `getlink-dtd-mysql`, avatar claim
-`getlink-dtd-avatars`, and existing database volumes. Do not create a `v1`
-namespace, recreate volumes, or run a competing Helm release/Application.
-For an intentional external MySQL migration, review that separate data change
-before setting `mysql.enabled=false` and changing the two database URLs.
-
-The default topology is for a portfolio/demo. Review storage durability,
-database operations and resource/security settings before production use.
+The app workflow publishes the existing four GHCR images and updates their
+full SHA tags in `helm_v1/main`; the one existing Argo Application automatically
+deploys the selected Git source. This chart does not publish images or manage
+credentials. See the repository [README](../../README.md) for GitHub/Argo
+inspection, normal local synchronization and compatible image-tag rollback.
+Rollback does not restore database data. Do not run a competing Helm upgrade
+or bootstrap; preserve existing data, PVCs and Secrets.

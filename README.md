@@ -1,96 +1,72 @@
-# helm_v1 — GetLink DTD Azure GitOps chart
+# helm_v1 — GetLink Azure Helm chart
 
-A public version of the GetLink application chart, prepared to reuse the
-existing Azure environment. It does not create a second application or a new
-namespace. Its CI only lints, renders and checks the deployment contract;
-it never applies resources to a cluster.
+The public Azure-only copy of the original GetLink chart. It reuses the existing
+Azure environment, website and data. The original private repositories remain
+unchanged. Companion repositories: [app_v1](https://github.com/dongtaiduc04-star/app_v1)
+and [infra_v1](https://github.com/dongtaiduc04-star/infra_v1).
 
-- [app_v1](https://github.com/dongtaiduc04-star/app_v1): application source.
-- [infra_v1](https://github.com/dongtaiduc04-star/infra_v1): Azure infrastructure and operator procedures.
+## Workflow
 
-## Configuration
+The configured owner push to `app_v1/main` publishes the same four GHCR images and updates
+the image tags in `helm_v1/main`. The one existing Argo Application
+`argocd/getlink-dtd` watches this repository and automatically synchronizes the
+existing application. No additional Helm deployment workflow is required.
+The owner confirmed the existing site worked after activation on 2026-10-08.
+In `app_v1` repository settings, `HELM_REPO_NAME` must be `helm_v1`; keep the
+existing owner-approved `ENABLE_AZURE_DELIVERY=true` and delivery access. This
+does not change the private app/Helm repositories or grant readers write access.
 
-The chart is in `helm/getlink-dtd`. `values.yaml` remains a generic base;
-`values-azure.yaml` records the existing, non-secret Azure deployment metadata:
+In GitHub, open `app_v1` → **Actions** and inspect the release workflow's jobs:
 
-| Setting | Existing Azure value |
+- **Build, Test, Checkstyle & SonarQube (PRs)**
+- **Build Docker images and push to GHCR (push to main)**
+- **Update GetLink Helm values**
+
+Then open `helm_v1` → **Code** → `helm/getlink-dtd/values-azure.yaml` and check
+the four image tags, or open the existing website. If you already have access
+to the Argo UI, the existing Application should show `Synced` and `Healthy`.
+Do not expose a new Argo endpoint or rerun bootstrap for a routine release.
+
+## Existing Azure configuration
+
+Use chart `helm/getlink-dtd`, its base `values.yaml`, and `values-azure.yaml`.
+
+| Setting | Existing value |
 | --- | --- |
-| Helm release, resource prefix and namespace | `getlink-dtd` |
-| App and database credential Secret | `getlink-dtd-secrets` |
-| Private GHCR pull Secret | `ghcr-pull-secret` |
+| Application, release, namespace and resource prefix | `getlink-dtd` |
+| Credential Secret / registry Secret | `getlink-dtd-secrets` / `ghcr-pull-secret` |
 | Images | `ghcr.io/dongtaiduc04-star/getlink-dtd-{frontend,api-gateway,auth-service,link-service}` |
-| Application URL | `https://getlink-azure.dongtaiduc.me` |
-| MySQL and avatar storage class | `local-path` |
+| Website | `https://getlink-azure.dongtaiduc.me` |
+| MySQL and avatar storage | `local-path`, existing volumes |
 
-All four image tags are the same full source commit SHA, not `latest`. The
-initial operational overlay retains the SHA recorded by the private Helm
-repository; it is not a claim that those images or a running cluster have
-been inspected. Only an owner-approved application release may update tags.
-The intended application release workflow uses these existing GHCR packages,
-not separate `v1` packages.
+Keep these identities, the existing database, PVCs, Secrets and Cloudflare
+Tunnel. Argo selects one Helm repository at a time; do not create a second
+Application, namespace or environment. The old app workflow still updates its
+own private Helm repository. Avoid simultaneous releases because both app
+workflows share the image packages, `latest` tags and SonarQube project.
 
-Keep the existing `existingSecret` in the existing namespace.
-Its keys are `mysql-root-password`, `auth-db-password`, `link-db-password`
-and `jwt-secret` (at least 32 random bytes). Never put their values in Git.
-An `imagePullSecrets` name is a reference, not the registry credential itself.
+All four deployed image tags use the same full application commit SHA, not
+`latest`. Read the current remote values; an older local checkout may be stale.
+Never commit credentials. The existing Secret keys are `mysql-root-password`,
+`auth-db-password`, `link-db-password` and `jwt-secret`.
 
-Azure uses Traefik and `local-path` storage; TLS terminates at the existing
-separately configured Cloudflare Tunnel. The bundled MySQL and single-replica avatar PVC are
-portfolio/demo tradeoffs, not a highly available production topology.
+## Manual changes and rollback
 
-## One GitOps controller, one selected source
+The application workflow makes remote Helm commits. Before editing a clean
+local `helm_v1` checkout, run `git pull --ff-only origin main`. If local changes
+exist or fast-forwarding fails, stop and review; do not reset or force-push.
+Use normal reviewed commits/merges. Do not run a competing Helm install/upgrade,
+Terraform apply, or initial-publication script for application updates.
 
-The existing Argo CD Application is `argocd/getlink-dtd`; its destination is
-the existing `getlink-dtd` namespace. It must select exactly one source:
-the private `dongtaiduc04-star/helm` repository or this public `helm_v1`
-repository. Both use chart path `helm/getlink-dtd`, release `getlink-dtd`, and
-value files `values.yaml` then `values-azure.yaml`. Changes to the inactive
-repository must not be deployed by a second Application.
+For an owner-reviewed rollback, coordinate pending releases, choose an available
+known-good SHA compatible with the current database, and normally revert/commit
+only the four image tags in the selected Helm repository. Keep data, PVCs,
+Secrets and routes unchanged. Argo applies the Git change automatically.
+An Argo UI-only rollback or `kubectl rollout undo` does not change desired Git
+state and may be reversed by reconciliation. Image rollback does not restore
+data or reverse a database migration.
 
-Preparing or publishing these files does not select this repository in Argo
-CD. The owner must separately approve switching the existing Application.
-Before that switch, allow the two exact repository URLs in its existing
-AppProject, inspect the live source/revision and rendered diff, and confirm
-that the public values match the actual namespace, image tags and storage.
-The intended steady state is automatic sync from the selected source only.
-Never create a second Application for the same resources or copy/delete the
-namespace, MySQL database, PVCs, Secrets or Cloudflare Tunnel.
-
-Each application workflow updates its own fixed Helm repository: the private
-`app` workflow updates `helm`, and `app_v1` updates `helm_v1`, even when its
-repository is inactive in Argo CD. Updating the inactive Helm repository does
-not deploy it; the single existing Application selects the deployed source.
-Coordinate releases to avoid concurrent writes to the shared GHCR `latest`
-tags or simultaneous analysis of the same SonarQube project. Deployment values
-still use full immutable SHA tags. Rollback is an owner-reviewed source/tag
-change on the same existing Application, not deleting and reinstalling the
-chart. See the operator procedures in
-[infra_v1](https://github.com/dongtaiduc04-star/infra_v1).
-
-## Local checks and CI
-
-CI uses Helm 4.3.0, read-only repository permissions, and GitHub-hosted runners.
-It runs lint and offline template rendering for the base and Azure values,
-then checks the existing Azure resource/image/Secret/storage contract.
-These checks do not establish that a real cluster can run the application.
-
-```sh
-helm lint helm/getlink-dtd
-helm template getlink-dtd helm/getlink-dtd
-helm lint helm/getlink-dtd -f helm/getlink-dtd/values-azure.yaml
-helm template getlink-dtd helm/getlink-dtd -f helm/getlink-dtd/values-azure.yaml
-pwsh -File scripts/Test-AzureContract.ps1
-```
-
-The contract test does not contact Kubernetes, GHCR, GitHub or Azure. A green
-CI run does not establish that image access, Secrets, the database, DNS or the
-running application work. Do not run `helm install` or `helm upgrade` against
-the existing environment just to inspect this publication; Argo CD owns it.
-
-## Access and licensing
-
-Only the owner is intended to have write/merge access. See
-[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
-No new open-source license is granted by this publication; existing third-party
-licenses and notices still apply. The previous repository history, including
-legacy Vprofile examples, is not included.
+Only the owner has intended human write access; the authorized app workflow
+also updates image values. Public readers receive no write token. See
+[SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md). No new
+open-source license has been granted; retain third-party notices.

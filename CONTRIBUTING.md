@@ -16,4 +16,5 @@ public contributions. Follow SECURITY.md for sensitive reports.
 Owner changes should use a branch and pull request, run the documented checks,
 and be reviewed before merge. Do not add auto-merge, automatic deployment, image
 publishing, cloud login or cross-repository write access without a new security
-review. CI is verification only and should not receive deployment secrets.
+review. This chart copy has no separate CI pipeline; keep the existing
+owner-configured `app_v1` writer limited to this repository's image values.
