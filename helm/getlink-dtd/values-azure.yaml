@@ -8,19 +8,19 @@ imagePullSecrets:
 images:
   frontend:
     repository: ghcr.io/dongtaiduc04-star/getlink-dtd-frontend
-    tag: 90cd11ad04037417063ab5c88fbb0c2eaad118f6
+    tag: abd9d58787866e525cb4bd72063a48f482b72e26
     pullPolicy: IfNotPresent
   apiGateway:
     repository: ghcr.io/dongtaiduc04-star/getlink-dtd-api-gateway
-    tag: 90cd11ad04037417063ab5c88fbb0c2eaad118f6
+    tag: abd9d58787866e525cb4bd72063a48f482b72e26
     pullPolicy: IfNotPresent
   authService:
     repository: ghcr.io/dongtaiduc04-star/getlink-dtd-auth-service
-    tag: 90cd11ad04037417063ab5c88fbb0c2eaad118f6
+    tag: abd9d58787866e525cb4bd72063a48f482b72e26
     pullPolicy: IfNotPresent
   linkService:
     repository: ghcr.io/dongtaiduc04-star/getlink-dtd-link-service
-    tag: 90cd11ad04037417063ab5c88fbb0c2eaad118f6
+    tag: abd9d58787866e525cb4bd72063a48f482b72e26
     pullPolicy: IfNotPresent
 app:
   publicBaseUrl: https://getlink-azure.dongtaiduc.me
